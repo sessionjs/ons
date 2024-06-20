@@ -5,7 +5,7 @@ Resolve Session ONS names to Session IDs in Node.js/Bun/browser
 ```ts
 import { resolve } from '@session.js/ons'
 
-await resolve('keejef') // => 053b6b764388cd6c4d38ae0b3e7492a8ecf0076e270c013bb5693d973045f45254
+await resolve('keejef') // => 05d871fc80ca007eed9b2f4df72853e2a2d5465a92fcb1889fb5c84aa2833b3b40
 
 await resolve('hloth', {
   daemon: 'http://public-eu.optf.ngo:22023'

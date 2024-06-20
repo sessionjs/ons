@@ -1,8 +1,9 @@
 {
   "name": "@session.js/ons",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "module": "src/index.ts",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "Viktor Shchelochkov <hi@hloth.dev> (https://hloth.dev)",
   "repository": {
     "type": "git",
