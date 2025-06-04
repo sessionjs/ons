@@ -17,10 +17,14 @@ await resolve('invalid ons name') // => throws `new Error('Invalid ONS name')`
 ```
 
 - ✅ Supports both modern (blake2b) and legacy (argon2) formats of encrypted value
-- ✅ Works universally in browser and server thanks to universal `libsodium-wrappers-sumo` and `blake2b`
-- ✅ Validation
-- ✅ TypeScript
+- ✅ Works in browser
+- ✅ Works on server (Node.js & Bun)
+- ✅ Works on edge (Cloudflare workers)
+- ✅ Input validation
+- ✅ TypeScript definitions
 - ✅ Tested with bun:test
+
+This library is isomorphic meaning it runs everywhere, in every environment where WASM is supported: browser, server, edge. This is possible thanks to [tweetnacl](https://www.npmjs.com/package/tweetnacl), [@stablelib/xchacha20poly1305](https://www.npmjs.com/package/@stablelib/xchacha20poly1305), [argon2-browser](https://www.npmjs.com/package/argon2-browser) which were implemented instead of [libsodium-wrappers](https://www.npmjs.com/package/libsodium-wrappers) dependency.
 
 ## Advanced use
 

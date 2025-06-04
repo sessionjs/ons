@@ -1,98 +1,112 @@
 import blake2 from 'blake2b'
-import sodium from 'libsodium-wrappers-sumo'
-import { ready } from 'libsodium-wrappers-sumo'
+import nacl from 'tweetnacl'
+import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305'
+import argon2, { ArgonType } from 'argon2-browser'
 
 const ED25519_PUBLIC_KEY_LENGTH = 32
 const SESSION_PUBLIC_KEY_BINARY_LENGTH = 1 + ED25519_PUBLIC_KEY_LENGTH
+const sodium = {
+  crypto_secretbox_MACBYTES: 16,
+  crypto_pwhash_SALTBYTES: 16,
+  crypto_aead_xchacha20poly1305_ietf_KEYBYTES: 32,
+  crypto_pwhash_OPSLIMIT_MODERATE: 3,
+  crypto_pwhash_MEMLIMIT_MODERATE: 268435456,
+  crypto_secretbox_NONCEBYTES: 24,
+  crypto_aead_xchacha20poly1305_ietf_NPUBBYTES: 24
+} as const
 
-/** Resolve Session ONS name to Session ID. 
- * Fetches public daemon, returns string with decrypted value. 
- * - If ONS is not found, returns null. 
+/** Resolve Session ONS name to Session ID.
+ * Fetches public daemon, returns string with decrypted value.
+ * - If ONS is not found, returns null.
  * - If ONS is invalid, throws error.
  * - If there was an error during fetch or value decryption, throws error.
  * You can set custom **wallet** daemon which supports JSON_RPC by passing options object with daemon string in the following format:
  * `http://public-eu.optf.ngo:22023`
-**/
+ **/
 export async function resolve(ons: string, options?: { daemon: string }): Promise<string | null> {
   validateONS(ons)
   validateOptions(options)
-  await ready
   const daemon = options?.daemon ?? 'http://public-eu.optf.ngo:22023'
   const nameHash = await generateOnsHash(ons)
+  const nameHashBase64 = uint8ArrayToBase64(nameHash)
+
   const request = await fetch(daemon + '/json_rpc', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      'jsonrpc': '2.0',
-      'id': '0',
-      'method': 'ons_resolve',
-      'params': {
-        'name_hash': nameHash,
-        'type': 0
+      jsonrpc: '2.0',
+      id: '0',
+      method: 'ons_resolve',
+      params: {
+        name_hash: nameHashBase64,
+        type: 0
       }
     }),
     redirect: 'follow'
-  })
-    .then(res => res.json() as Promise<{ result: { encrypted_value: string, nonce: string } }>)
+  }).then((res) => res.json() as Promise<{ result: { encrypted_value: string; nonce: string } }>)
   if (!('encrypted_value' in request.result)) {
     return null
   }
-  const nonce = request.result.nonce ?? ''
-  const value = request.result.encrypted_value
-  const encrypted = value.concat(nonce)
-  const decrypted = await decryptONSValue(encrypted, ons)
-  return decrypted
+  const nonceHex = request.result.nonce ?? ''
+  const encryptedValueHex = request.result.encrypted_value
+  const encryptedMessageHex = encryptedValueHex.concat(nonceHex)
+  const decryptedValue = await decryptONSValue(encryptedMessageHex, ons)
+  if (decryptedValue === null) return decryptedValue
+  return decryptedValue && uint8ArrayToHex(decryptedValue)
 }
 
-function validateONS(ons: string) {
-  if (!ons.match(/^\w([\w-]*[\w])?$/)) {
+export function isOnsValid(ons: string) {
+  return /^\w([\w-]*[\w])?$/.test(ons)
+}
+
+export function validateONS(ons: string) {
+  if (!isOnsValid(ons)) {
     throw new Error('Invalid ONS name')
   }
 }
 
 function validateOptions(options?: { daemon?: string }) {
-  if(options) {
-    if(options.daemon) {
+  if (options) {
+    if (options.daemon) {
       try {
         new URL(options.daemon)
-      } catch(e) {
+      } catch {
         throw new Error('Invalid daemon URL')
       }
-      if(options.daemon.trim().endsWith('/')) {
+      if (options.daemon.trim().endsWith('/')) {
         options.daemon = options.daemon.trim().slice(0, -1)
       }
     }
   }
 }
 
-/** 
+/**
  * ⚠️ **Advanced use.** You might be looking for `resolve` function.
- * 
+ *
  * Generates blake2 hash from ONS name for database search.
-*/
-export function generateOnsHash(input: string) {
-  return Buffer.from(blake2(32)
-    .update(Buffer.from(input))
-    .digest('binary')).toString('base64')
+ */
+export function generateOnsHash(ons: string) {
+  return blake2(32).update(new TextEncoder().encode(ons)).digest('binary')
 }
 
-/** 
+/**
  * ⚠️ **Advanced use.** You might be looking for `resolve` function.
- * 
+ *
  * Decrypts concatenated encrypted value + nonce using unhashed name to Session ID.
-*/
-export function decryptONSValue(value: string, unhashedName: string) {
-  const encryptedValue = Buffer.from(value, 'hex')
-  const legacyFormat = encryptedValue.length === SESSION_PUBLIC_KEY_BINARY_LENGTH + sodium.crypto_secretbox_MACBYTES
+ */
+export async function decryptONSValue(encryptedMessageHex: string, ons: string) {
+  const encryptedMessage = hexToUint8Array(encryptedMessageHex)
+  const legacyFormat =
+    encryptedMessage.length === SESSION_PUBLIC_KEY_BINARY_LENGTH + sodium.crypto_secretbox_MACBYTES
   try {
-    const key = generateKey(unhashedName, legacyFormat ? 'argon2id13' : 'blake2b')
-    const [message, nonce] = splitEncryptedValue(encryptedValue, legacyFormat)
+    const key = await generateKey(ons, legacyFormat ? 'argon2id13' : 'blake2b')
     if (legacyFormat) {
-      return decryptSecretboxWithKey(message, nonce, key)
+      return decryptSecretboxWithKey(encryptedMessage, key)
     } else {
-      return decryptXChachaWithKey(message, nonce, key)
+      const [encryptedValue, nonce] = splitEncryptedMessage(encryptedMessage)
+      return decryptXChachaWithKey(encryptedValue, nonce, key)
     }
   } catch (e) {
     if (e instanceof Error && e.message === 'could not verify data') {
@@ -103,74 +117,88 @@ export function decryptONSValue(value: string, unhashedName: string) {
   }
 }
 
-/** 
+/**
  * ⚠️ **Advanced use.** You might be looking for `resolve` function.
- * 
- * Decrypts modern format encrypted value using derived nonce and generated key.
-*/
-export function decryptXChachaWithKey(message: Buffer, nonce: Buffer, key: Buffer) {
-  return sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-    null,
-    message,
-    null,
-    nonce,
-    key,
-    'hex'
-  )
-}
-
-/** 
- * ⚠️ **Advanced use.** You might be looking for `resolve` function.
- * 
- * Decrypts legacy format encrypted value using derived nonce and generated key.
-*/
-export function decryptSecretboxWithKey(message: Buffer, nonce: Buffer, key: Buffer) {
-  return sodium.crypto_secretbox_open_easy(
-    message,
-    nonce,
-    key,
-    'hex'
-  )
-}
-
-/** 
- * ⚠️ **Advanced use.** You might be looking for `resolve` function.
- * 
- * Generates key from unhashed name using either modern (blake2b) or legacy (argon2id13) algorithm.
-*/
-export function generateKey(unhashedName: string, algorithm: 'blake2b' | 'argon2id13') {
+ *
+ * Generates decryption key from ons using either modern (blake2b) or legacy (argon2id13) algorithm.
+ */
+export async function generateKey(ons: string, algorithm: 'blake2b' | 'argon2id13') {
+  const name = new TextEncoder().encode(ons)
   if (algorithm === 'blake2b') {
-    const key = blake2(32)
-      .update(Buffer.from(unhashedName))
-      .digest('binary')
-    return Buffer.from(blake2(32, key)
-      .update(Buffer.from(unhashedName))
-      .digest('binary'))
+    const key = blake2(32).update(name).digest('binary')
+    const hashedKey = blake2(32, key).update(name).digest('binary')
+    return hashedKey
   } else {
-    const OLD_ENC_SALT = Buffer.alloc(sodium.crypto_pwhash_SALTBYTES)
-    return Buffer.from(sodium.crypto_pwhash(
-      sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES,
-      Buffer.from(unhashedName),
-      OLD_ENC_SALT,
-      sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-      sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-      sodium.crypto_pwhash_ALG_ARGON2ID13,
-    ))
+    const hashedKey = await argon2.hash({
+      salt: new Uint8Array(sodium.crypto_pwhash_SALTBYTES),
+      pass: name,
+      type: ArgonType.Argon2id,
+      time: sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+      parallelism: 1,
+      mem: sodium.crypto_pwhash_MEMLIMIT_MODERATE / 1024,
+      hashLen: sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES
+    })
+    return hashedKey.hash
   }
 }
 
-/** 
+/**
  * ⚠️ **Advanced use.** You might be looking for `resolve` function.
- * 
- * Utility function that splits encrypted value into message and nonce.
-*/
-export function splitEncryptedValue(encryptedValue: Buffer, legacyFormat: boolean): [Buffer, Buffer] {
-  if (legacyFormat) {
-    return [encryptedValue, Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)]
-  } else {
-    const messageLength = encryptedValue.length - sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
-    const nonce = encryptedValue.subarray(messageLength)
-    const message = encryptedValue.subarray(0, messageLength)
-    return [message, nonce]
+ *
+ * Decrypts modern format encrypted value using derived nonce and generated key.
+ */
+export function decryptXChachaWithKey(message: Uint8Array, nonce: Uint8Array, key: Uint8Array) {
+  const xchacha = new XChaCha20Poly1305(key)
+  const decrypted = xchacha.open(nonce, message)
+  if (!decrypted) {
+    throw new Error('XChaCha20Poly1305 decryption failed')
   }
+  return decrypted
+}
+
+/**
+ * ⚠️ **Advanced use.** You might be looking for `resolve` function.
+ *
+ * Decrypts legacy format encrypted value using derived nonce and generated key.
+ */
+export function decryptSecretboxWithKey(message: Uint8Array, key: Uint8Array) {
+  return nacl.secretbox.open(message, new Uint8Array(sodium.crypto_secretbox_NONCEBYTES), key)
+}
+
+/**
+ * ⚠️ **Advanced use.** You might be looking for `resolve` function.
+ *
+ * Utility function that splits encrypted message into value and nonce.
+ */
+export function splitEncryptedMessage(encryptedMessage: Uint8Array): [Uint8Array, Uint8Array] {
+  const messageLength = encryptedMessage.length - sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+  const nonce = encryptedMessage.subarray(messageLength)
+  const encryptedValue = encryptedMessage.subarray(0, messageLength)
+  return [encryptedValue, nonce]
+}
+
+// Utils
+
+export function uint8ArrayToBase64(array: Uint8Array): string {
+  const binaryString = Array.from(array)
+    .map((byte) => String.fromCharCode(byte))
+    .join('')
+  return btoa(binaryString)
+}
+
+export function hexToUint8Array(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error('Invalid hex string length')
+  }
+  const array = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) {
+    array[i / 2] = parseInt(hex.slice(i, i + 2), 16)
+  }
+  return array
+}
+
+export function uint8ArrayToHex(array: Uint8Array): string {
+  return Array.from(array)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
 }
