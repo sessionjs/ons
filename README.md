@@ -24,7 +24,7 @@ await resolve('invalid ons name') // => throws `new Error('Invalid ONS name')`
 - ✅ TypeScript definitions
 - ✅ Tested with bun:test
 
-This library is isomorphic meaning it runs everywhere, in every environment where WASM is supported: browser, server, edge. This is possible thanks to [tweetnacl](https://www.npmjs.com/package/tweetnacl), [@stablelib/xchacha20poly1305](https://www.npmjs.com/package/@stablelib/xchacha20poly1305), [argon2-browser](https://www.npmjs.com/package/argon2-browser) which were implemented instead of [libsodium-wrappers](https://www.npmjs.com/package/libsodium-wrappers) dependency.
+This library is isomorphic meaning it runs everywhere, in every environment where WASM is supported: browser, server, edge. This is possible thanks to [@noble/hashes](https://www.npmjs.com/package/@noble/hashes), [@noble/ciphers](https://www.npmjs.com/package/@noble/ciphers), [argon2-browser](https://www.npmjs.com/package/argon2-browser) which were implemented instead of [libsodium-wrappers](https://www.npmjs.com/package/libsodium-wrappers) dependency.
 
 ## Advanced use
 
@@ -37,8 +37,6 @@ Under the hood, the `resolve` function:
    1. decryptONSValue function generates key with `generateKey` function
    2. splits encoded value to message+nonce using `splitEncryptedValue` function
    3. depending on whether it's legacy format or not, it uses either `decryptSecretboxWithKey` or `decryptXChachaWithKey`
-
-Make sure you're awaiting `ready` from libsodium-wrappers-sumo if you're getting errors like `sodium.crypto_aead_xchacha20poly1305_ietf_decrypt is not a function.`
 
 ## Made for session.js
 
