@@ -11,6 +11,9 @@ test('resolve modern format', async () => {
   expect(await resolve('keejef')).toBe(
     '05d871fc80ca007eed9b2f4df72853e2a2d5465a92fcb1889fb5c84aa2833b3b40'
   )
+  expect(await resolve("li0ard")).toBe(
+    '05fc331b505085fecc2188707c1da8002ee3edc6eb5591e36ded40a4669a94ab11'
+  )
 })
 
 test('resolve legacy format', async () => {

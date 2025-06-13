@@ -1,7 +1,7 @@
-import blake2 from 'blake2b'
-import nacl from 'tweetnacl'
-import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305'
 import argon2, { ArgonType } from 'argon2-browser'
+import { blake2b } from '@noble/hashes/blake2';
+import { xchacha20poly1305 } from "@noble/ciphers/chacha"
+import { xsalsa20poly1305 } from "@noble/ciphers/salsa"
 
 const ED25519_PUBLIC_KEY_LENGTH = 32
 const SESSION_PUBLIC_KEY_BINARY_LENGTH = 1 + ED25519_PUBLIC_KEY_LENGTH
@@ -27,7 +27,7 @@ export async function resolve(ons: string, options?: { daemon: string }): Promis
   validateONS(ons)
   validateOptions(options)
   const daemon = options?.daemon ?? 'http://public-eu.optf.ngo:22023'
-  const nameHash = await generateOnsHash(ons)
+  const nameHash = generateOnsHash(ons)
   const nameHashBase64 = uint8ArrayToBase64(nameHash)
 
   const request = await fetch(daemon + '/json_rpc', {
@@ -87,8 +87,10 @@ function validateOptions(options?: { daemon?: string }) {
  *
  * Generates blake2 hash from ONS name for database search.
  */
-export function generateOnsHash(ons: string) {
-  return blake2(32).update(new TextEncoder().encode(ons)).digest('binary')
+export function generateOnsHash(ons: string): Uint8Array {
+  return blake2b(new TextEncoder().encode(ons), {
+    dkLen: 32
+  })
 }
 
 /**
@@ -96,7 +98,7 @@ export function generateOnsHash(ons: string) {
  *
  * Decrypts concatenated encrypted value + nonce using unhashed name to Session ID.
  */
-export async function decryptONSValue(encryptedMessageHex: string, ons: string) {
+export async function decryptONSValue(encryptedMessageHex: string, ons: string): Promise<Uint8Array | null> {
   const encryptedMessage = hexToUint8Array(encryptedMessageHex)
   const legacyFormat =
     encryptedMessage.length === SESSION_PUBLIC_KEY_BINARY_LENGTH + sodium.crypto_secretbox_MACBYTES
@@ -122,11 +124,13 @@ export async function decryptONSValue(encryptedMessageHex: string, ons: string) 
  *
  * Generates decryption key from ons using either modern (blake2b) or legacy (argon2id13) algorithm.
  */
-export async function generateKey(ons: string, algorithm: 'blake2b' | 'argon2id13') {
+export async function generateKey(ons: string, algorithm: 'blake2b' | 'argon2id13'): Promise<Uint8Array> {
   const name = new TextEncoder().encode(ons)
   if (algorithm === 'blake2b') {
-    const key = blake2(32).update(name).digest('binary')
-    const hashedKey = blake2(32, key).update(name).digest('binary')
+    const hashedKey = blake2b(name, {
+      dkLen: 32,
+      key: generateOnsHash(ons)
+    })
     return hashedKey
   } else {
     const hashedKey = await argon2.hash({
@@ -147,9 +151,9 @@ export async function generateKey(ons: string, algorithm: 'blake2b' | 'argon2id1
  *
  * Decrypts modern format encrypted value using derived nonce and generated key.
  */
-export function decryptXChachaWithKey(message: Uint8Array, nonce: Uint8Array, key: Uint8Array) {
-  const xchacha = new XChaCha20Poly1305(key)
-  const decrypted = xchacha.open(nonce, message)
+export function decryptXChachaWithKey(message: Uint8Array, nonce: Uint8Array, key: Uint8Array): Uint8Array {
+  const xchacha = xchacha20poly1305(key, nonce)
+  const decrypted = xchacha.decrypt(message)
   if (!decrypted) {
     throw new Error('XChaCha20Poly1305 decryption failed')
   }
@@ -161,8 +165,13 @@ export function decryptXChachaWithKey(message: Uint8Array, nonce: Uint8Array, ke
  *
  * Decrypts legacy format encrypted value using derived nonce and generated key.
  */
-export function decryptSecretboxWithKey(message: Uint8Array, key: Uint8Array) {
-  return nacl.secretbox.open(message, new Uint8Array(sodium.crypto_secretbox_NONCEBYTES), key)
+export function decryptSecretboxWithKey(message: Uint8Array, key: Uint8Array): Uint8Array {
+  let xsalsa = xsalsa20poly1305(key, new Uint8Array(24))
+  const decrypted = xsalsa.decrypt(message)
+  if (!decrypted) {
+    throw new Error('XSalsa20Poly1305 decryption failed')
+  }
+  return decrypted
 }
 
 /**
