@@ -1,42 +1,46 @@
 {
-  "name": "@session.js/ons",
-  "version": "1.1.1",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "author": "Viktor Shchelochkov <hi@hloth.dev> (https://hloth.dev)",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sessionjs/ons.git"
-  },
-  "bugs": {
-    "url": "https://github.com/sessionjs/ons/issues"
-  },
-  "homepage": "https://github.com/sessionjs/ons#readme",
-  "description": "Resolve Session ONS names to Session IDs in Node.js/Bun/browser/edge",
-  "type": "module",
-  "devDependencies": {
-    "@eslint/compat": "^1.2.9",
-    "@eslint/js": "^9.28.0",
-    "@types/argon2-browser": "^1.18.4",
-    "@types/bun": "latest",
-    "eslint": "^9.28.0",
-    "eslint-config-prettier": "^10.1.5",
-    "prettier": "^3.5.3",
-    "typescript-eslint": "^8.33.1"
-  },
-  "files": [
-    "dist/index.js",
-    "dist/index.d.ts"
-  ],
-  "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "@noble/ciphers": "^1.3.0",
-    "@noble/hashes": "^1.8.0",
-    "argon2-browser": "^1.18.0"
-  }
+	"name": "@session.js/ons",
+	"version": "1.1.2",
+	"description": "Resolve Session ONS names to Session IDs in Node.js/Bun/browser/edge",
+	"homepage": "https://git.hloth.dev/session.js/ons#readme",
+	"bugs": {
+		"url": "https://git.hloth.dev/session.js/ons/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://git.hloth.dev/session.js/ons.git"
+	},
+	"funding": "https://hloth.dev/donate",
+	"license": "MIT",
+	"author": "Viktor Shchelochkov <hi@hloth.dev> (https://hloth.dev)",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist/index.js",
+		"dist/index.d.ts",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"build": "rm -rf dist && tsc --project tsconfig.build.json"
+	},
+	"dependencies": {
+		"@noble/ciphers": "^1.3.0",
+		"@noble/hashes": "^1.8.0",
+		"argon2-browser": "^1.18.0"
+	},
+	"devDependencies": {
+		"@eslint/compat": "^2.0.1",
+		"@eslint/js": "^9.39.2",
+		"@types/argon2-browser": "^1.18.4",
+		"@types/bun": "latest",
+		"eslint": "^9.28.0",
+		"eslint-config-prettier": "^10.1.8",
+		"prettier": "^3.8.0",
+		"typescript-eslint": "^8.53.1"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	}
 }

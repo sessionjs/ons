@@ -24,7 +24,7 @@ await resolve('invalid ons name') // => throws `new Error('Invalid ONS name')`
 - ✅ TypeScript definitions
 - ✅ Tested with bun:test
 
-This library is isomorphic meaning it runs everywhere, in every environment where WASM is supported: browser, server, edge. This is possible thanks to [@noble/hashes](https://www.npmjs.com/package/@noble/hashes), [@noble/ciphers](https://www.npmjs.com/package/@noble/ciphers), [argon2-browser](https://www.npmjs.com/package/argon2-browser) which were implemented instead of [libsodium-wrappers](https://www.npmjs.com/package/libsodium-wrappers) dependency.
+This library is isomorphic meaning it runs everywhere, in every environment where WASM is supported: browser, server, edge. This is possible thanks to [@noble/hashes](https://www.npmjs.com/package/@noble/hashes), [@noble/ciphers](https://www.npmjs.com/package/@noble/ciphers), [argon2-browser](https://www.npmjs.com/package/argon2-browser) which were implemented instead of libsodium dependency.
 
 ## Advanced use
 
@@ -38,10 +38,14 @@ Under the hood, the `resolve` function:
    2. splits encoded value to message+nonce using `splitEncryptedValue` function
    3. depending on whether it's legacy format or not, it uses either `decryptSecretboxWithKey` or `decryptXChachaWithKey`
 
-## Made for session.js
+## Made for Session.js
 
-Use Session messenger programmatically with [Session.js](https://github.com/sessionjs/client): Session bots, custom Session clients, and more.
+Use Session messenger programmatically with [Session.js](https://git.hloth.dev/session.js/client): Session bots, custom Session clients, and more.
 
 ## Donate
 
-[hloth.dev/donate](https://hloth.dev/donate)
+[hloth.dev/donate](https://hloth.dev/donate) · Tor: [hlothdevzkti6suoksy7lcy7hmpxnr3msu5waokzaslsi2mnx5ouu4qd.onion/donate](http://hlothdevzkti6suoksy7lcy7hmpxnr3msu5waokzaslsi2mnx5ouu4qd.onion/donate)
+
+## License
+
+[MIT](./LICENSE)

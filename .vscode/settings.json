@@ -1,43 +1,22 @@
 {
   "editor.tabCompletion": "on",
-  "path-intellisense.mappings": {
-    "@/*": "${workspaceFolder}/src/*"
-  },
-  "files.associations": {
-    "*.css": "tailwindcss"
-  },
+  "editor.tabSize": 4,
+  "editor.detectIndentation": false,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
-  "editor.quickSuggestions": {
-    "strings": "on"
-  },
+  "files.exclude": {
+		"dist/**": true
+	},
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[javascriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "editor.formatOnSave": true,
-  "eslint.validate": ["javascript", "typescript"],
-  "search.exclude": {
-    "**/.git": true,
-    "**/node_modules": true,
-    ".eslintcache": true
-  },
-  "typescript.preferences.autoImportFileExcludePatterns": [
-    "**/node_modules/**",
-    "**/build/**"
-  ],
-  "svg.preview.background": "transparent",
-  "typescript.experimental.expandableHover": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.preferences.importModuleSpecifierEnding": "minimal"
+  "[json]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+  "editor.formatOnSave": true
 }
